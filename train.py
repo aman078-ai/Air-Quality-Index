@@ -3,6 +3,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import KFold, cross_validate
 from sklearn.ensemble import RandomForestRegressor
 from pipeline import prepare_data
 
@@ -54,7 +55,20 @@ def train_model():
     print("Training model on scaled features...")
     model.fit(X_train, y_train)
     
-    # 3. Evaluate the model
+    # 3. Perform 5-Fold Cross-Validation on training set
+    print("Performing 5-Fold Cross-Validation...")
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    cv_results = cross_validate(
+        model, X_train, y_train, 
+        cv=kf, 
+        scoring=('neg_root_mean_squared_error', 'r2'), 
+        return_train_score=False,
+        n_jobs=-1
+    )
+    cv_rmse = -cv_results['test_neg_root_mean_squared_error']
+    cv_r2 = cv_results['test_r2']
+    
+    # 4. Evaluate the model on test set
     print("Evaluating model...")
     y_pred_train = model.predict(X_train)
     y_pred_test = model.predict(X_test)
@@ -65,6 +79,13 @@ def train_model():
     
     train_r2 = r2_score(y_train, y_pred_train)
     test_r2 = r2_score(y_test, y_pred_test)
+    
+    print("\n" + "="*40)
+    print("5-FOLD CROSS-VALIDATION RESULTS")
+    print("="*40)
+    print(f"CV RMSE Mean: {cv_rmse.mean():.4f} (std: {cv_rmse.std():.4f})")
+    print(f"CV R² Mean:   {cv_r2.mean():.4f} (std: {cv_r2.std():.4f})")
+    print("="*40)
     
     print("\n" + "="*40)
     print("MODEL EVALUATION RESULTS")
